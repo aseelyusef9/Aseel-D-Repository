@@ -1,0 +1,43 @@
+.venv
+venv
+.vscode
+.idea
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+*.db
+*.pt
+
+uploads/
+
+.idea
+.vscode
+
+__pycache__
+*.pycwip
+*.pyo
+*.pyd
+*.pdm.toml
+*.pdm.lock
+*.mypy_cache/
+*.pytest_cache/
+*.coverage
+.coverage.*
+.cache
+.tox/
+dist/
+build/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+# Common OS ignores
+.DS_Store
+Thumbs.db
+# Common log files
+*.log
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
