@@ -49,7 +49,7 @@ async def extract(file: UploadFile = File(...)):
     data = {}
     data_confidence = {}
     items = []
-
+####
     for page in response.data.pages:
         if page.document_fields:
             for field in page.document_fields:
@@ -81,7 +81,7 @@ async def extract(file: UploadFile = File(...)):
                     document_confidence = response.data.document_classification_results[0].confidence
                 for page in pages:
 
-                    
+
     normalized_output = {
     "confidence": document_confidence,
     "data": {
