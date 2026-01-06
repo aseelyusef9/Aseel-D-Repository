@@ -1,0 +1,91 @@
+# test/test_invoice_by_vendor.py
+import unittest
+from fastapi.testclient import TestClient
+from db_util import init_db, clean_db, get_db
+from app import app
+
+class TestGetInvoiceByVendor(unittest.TestCase):
+    """Integration test for GET /invoices/vendor/{vendor_name}"""
+
+    def setUp(self):
+        """Set up test database and insert test invoice"""
+        init_db()
+        with get_db() as conn:
+            cursor = conn.cursor()
+
+            # Insert invoice for vendor SuperStore
+            cursor.execute("""
+                INSERT INTO invoices (
+                    InvoiceId, VendorName, InvoiceDate, BillingAddressRecipient,
+                    ShippingAddress, SubTotal, ShippingCost, InvoiceTotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "38655",
+                "SuperStore",
+                "Dec 29 2012",
+                "Alex Russell",
+                "19143, Philadelphia, Pennsylvania, United States",
+                None,
+                "$28.56",
+                "$935.63"
+            ))
+
+            # Insert items for the invoice
+            items = [
+                ("38655", "ClearSounds CSC500 de nones, Technology, TE PH-3827", 
+                 "ClearSounds CSC500 de nones, Technology, TE PH-3827", 9, 251.96, 1511.78),
+            ]
+            cursor.executemany("""
+                INSERT INTO items (InvoiceId, Description, Name, Quantity, UnitPrice, Amount)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, items)
+            conn.commit()
+
+    def tearDown(self):
+        """Clean the database after each test"""
+        clean_db()
+
+    def test_get_invoices_by_vendor_success(self):
+        """GET /invoices/vendor/SuperStore returns correct invoice(s)"""
+        client = TestClient(app)
+        response = client.get("/invoices/vendor/SuperStore")
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+
+        # Should return one invoice
+        self.assertEqual(len(result["invoices"]), 1)
+        invoice = result["invoices"][0]
+
+        # Check invoice fields
+        self.assertEqual(invoice["InvoiceId"], "38655")
+        self.assertEqual(invoice["VendorName"], "SuperStore")
+        self.assertEqual(invoice["InvoiceDate"], "Dec 29 2012")
+        self.assertEqual(invoice["BillingAddressRecipient"], "Alex Russell")
+        self.assertEqual(invoice["ShippingAddress"], "19143, Philadelphia, Pennsylvania, United States")
+        self.assertIsNone(invoice["SubTotal"])
+        self.assertEqual(invoice["ShippingCost"], "$28.56")
+        self.assertEqual(invoice["InvoiceTotal"], "$935.63")
+
+        # Check items
+        self.assertEqual(len(invoice["Items"]), 1)
+        item = invoice["Items"][0]
+        self.assertEqual(item["Description"], "ClearSounds CSC500 de nones, Technology, TE PH-3827")
+        self.assertEqual(item["Name"], "ClearSounds CSC500 de nones, Technology, TE PH-3827")
+        self.assertEqual(item["Quantity"], 9)
+        self.assertEqual(item["UnitPrice"], 251.96)
+        self.assertEqual(item["Amount"], 1511.78)
+
+    def test_get_invoices_by_vendor_not_found(self):
+        """GET /invoices/vendor/UnknownVendor returns empty list (failure case)"""
+        client = TestClient(app)
+        response = client.get("/invoices/vendor/UnknownVendor")  # vendor not in DB
+
+        # Expect 200 OK with empty list
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertIn("invoices", result)
+        self.assertEqual(len(result["invoices"]), 0)  # empty list
+
+if __name__ == "__main__":
+    unittest.main()
