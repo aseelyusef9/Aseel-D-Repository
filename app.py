@@ -1,5 +1,6 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File,HTTPException
 import oci
+import time
 import base64
 from db_util import init_db, save_inv_extraction
 
@@ -33,8 +34,9 @@ async def extract(file: UploadFile = File(...)):
             )
         ]
     )
-
+    time_before=time.time()
     response = doc_client.analyze_document(request)
+<<<<<<< HEAD
 
     #result = {
         #"confidence": "TBD...",
@@ -46,83 +48,90 @@ async def extract(file: UploadFile = File(...)):
     
     
 
+=======
+    time_after=time.time()
+   
+>>>>>>> 6729185fe1cc223bb82cfb4fe1d57be226ee0e40
     data = {}
     data_confidence = {}
-    items = []
-####
+    list_of_items = []
+
     for page in response.data.pages:
-        if page.document_fields:
-            for field in page.document_fields:
-                field_name = field.field_label.name if field.field_label else None
-                field_confidence = field.field_label.confidence if field.field_label else None
-                field_value = field.field_value.text
-            
-                data[field_name] = field_value
+        if not page.document_fields:
+            continue
+
+        for field in page.document_fields:
+            field_name = field.field_label.name if field.field_label else None
+            field_confidence = field.field_label.confidence if field.field_label else None
+
+            # normal fields
+            if field_name and field_name.lower() != "items":
+                data[field_name] = field.field_value.text
                 data_confidence[field_name] = field_confidence
-                if field_name == "Items" and field.field_value.value_type == "ARRAY":
-                    for item in field.field_value.array_value:
-                        item_data = {}
 
-                        for sub_field in item.object_value:
-                            sub_name = sub_field.field_label.name
-                            sub_value = sub_field.field_value.text
+            #  Items
+            else:
+                items_list = getattr(field.field_value, "items", None)
+                if not items_list:
+                    items_list = getattr(field.field_value, "_items", [])
 
-                            item_data[sub_name] = sub_value
+                for raw_item in items_list:
+                    fields = raw_item if isinstance(raw_item, list) else [raw_item]
 
-                        items.append(item_data)
+                    item_dict = {
+                        "Description": None,
+                        "Name": None,
+                        "Quantity": None,
+                        "UnitPrice": None,
+                        "Amount": None
+                    }
 
-                if items:
-                   data["Items"] = items
+                    for item_field in fields:
+                        if not item_field.field_label:
+                            continue  # تجاهل الحقول الفارغة
 
-                #document_confidence = response.data.pages.document_fields.fieldValue.confidence
-                #document_confidence = response.data.document_classification.confidence
-                document_confidence = 1
-                if response.data.document_classification_results:
-                    document_confidence = response.data.document_classification_results[0].confidence
-                for page in pages:
+                        item_field_name = item_field.field_label.name
+                        item_field_value = item_field.field_value.text
+
+                        if item_field_name in item_dict:
+                            item_dict[item_field_name] = item_field_value
+
+                    list_of_items.append(item_dict)
 
 
-    normalized_output = {
-    "confidence": document_confidence,
-    "data": {
-        "VendorName": data.get("VendorName"),
-        "VendorNameLogo": data.get("VendorNameLogo"),
-        "InvoiceId": data.get("InvoiceId"),
-        "InvoiceDate": data.get("InvoiceDate"),
-        "ShippingAddress": data.get("ShippingAddress"),
-        "BillingAddressRecipient": data.get("BillingAddressRecipient"),
-        "AmountDue": data.get("AmountDue"),
-        "SubTotal": data.get("SubTotal"),
-        "ShippingCost": data.get("ShippingCost"),
-        "InvoiceTotal": data.get("InvoiceTotal"),
-        "Items": data.get("Items", [])
-    },
-    "dataConfidence": {
-        "VendorName": data_confidence.get("VendorName"),
-        "VendorNameLogo": data_confidence.get("VendorNameLogo"),
-        "InvoiceId": data_confidence.get("InvoiceId"),
-        "InvoiceDate": data_confidence.get("InvoiceDate"),
-        "ShippingAddress": data_confidence.get("ShippingAddress"),
-        "BillingAddressRecipient": data_confidence.get("BillingAddressRecipient"),
-        "AmountDue": data_confidence.get("AmountDue"),
-        "SubTotal": data_confidence.get("SubTotal"),
-        "ShippingCost": data_confidence.get("ShippingCost"),
-        "InvoiceTotal": data_confidence.get("InvoiceTotal")
+    # إضافة items للـ data
+    data["Items"] = list_of_items
+
+
+
+    if response.data.detected_document_types:
+        is_valid = False
+
+        for doc in response.data.detected_document_types:
+            if doc.confidence >= 0.9:
+                is_valid = True
+                break
+
+        if not is_valid:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid document. Please upload a valid PDF invoice with high confidence."
+            )
+
+
+    prediction_time=time_after-time_before
+    result = {
+        "confidence": 1,
+        "data": data,
+        "dataConfidence": data_confidence
+        "predictionTime": prediction_time
     }
-}
 
-   
+    save_inv_extraction(result)
+    print(result)
+    return result
 
-           #for item in items_list:
-              #for item_fields in item.field_value.items:
-                   
-                   
-        #result={
-           # "confidence": field_confidence,
-          #  "data" : data,
-           # "data confidence": data_confidence
 
-    return normalized_output
 
 @app.get('/health')
 def health():
