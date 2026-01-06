@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File,HTTPException
 import oci
 import time
 import base64
-from db_util import init_db, save_inv_extraction
+from db_util import init_db, save_inv_extraction,get_db
 
 app = FastAPI()
 
@@ -66,39 +66,22 @@ async def extract(file: UploadFile = File(...)):
 
             # normal fields
             if field_name and field_name.lower() != "items":
-                data[field_name] = field.field_value.text
+                data[field_name] = field.field_value.value
                 data_confidence[field_name] = field_confidence
+ 
+ 
 
             #  Items
             else:
-                items_list = getattr(field.field_value, "items", None)
-                if not items_list:
-                    items_list = getattr(field.field_value, "_items", [])
+                    dict = {}
+                    for items in field.field_value.items:
+                        for texts in items.field_value.items:
+                            field_value = texts.field_label.name
+                            field_text = texts.field_value.value
+                            dict[field_value] = field_text    
+                    list_of_items.append(dict)
 
-                for raw_item in items_list:
-                    fields = raw_item if isinstance(raw_item, list) else [raw_item]
-
-                    item_dict = {
-                        "Description": None,
-                        "Name": None,
-                        "Quantity": None,
-                        "UnitPrice": None,
-                        "Amount": None
-                    }
-
-                    for item_field in fields:
-                        if not item_field.field_label:
-                            continue  # تجاهل الحقول الفارغة
-
-                        item_field_name = item_field.field_label.name
-                        item_field_value = item_field.field_value.text
-
-                        if item_field_name in item_dict:
-                            item_dict[item_field_name] = item_field_value
-
-                    list_of_items.append(item_dict)
-
-
+    print(list_of_items)
     # إضافة items للـ data
     data["Items"] = list_of_items
 
@@ -123,15 +106,102 @@ async def extract(file: UploadFile = File(...)):
     result = {
         "confidence": 1,
         "data": data,
-        "dataConfidence": data_confidence
+        "dataConfidence": data_confidence,
         "predictionTime": prediction_time
     }
-
+    
     save_inv_extraction(result)
     print(result)
     return result
 
+#http://127.0.0.1:8080/invoice/36259
+@app.get('/invoice/{invoice_id}')
+def get_invoice_by_id(invoice_id: str):
+    with get_db() as conn: #ניהול חיבור לבסיס הנתונים
+        cursor = conn.cursor() #מצביע (cursor) שרץ על מסד הנתונים ומבצע פקודות SQL
 
+        cursor.execute("""
+            SELECT InvoiceId, VendorName, InvoiceDate, BillingAddressRecipient,
+                   ShippingAddress, SubTotal, ShippingCost, InvoiceTotal
+            FROM invoices
+            WHERE InvoiceId = ? 
+        """, (invoice_id,)) #,כי SQLite מצפה ל־ tuple/ של פרמטרים ? = אבטחה ויציבות
+       
+        row = cursor.fetchone() #Tuple
+        if not row:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+
+        invoice = {
+            "InvoiceId": row[0],
+            "VendorName": row[1],
+            "InvoiceDate": row[2],
+            "BillingAddressRecipient": row[3],
+            "ShippingAddress": row[4],
+            "SubTotal": row[5],
+            "ShippingCost": row[6],
+            "InvoiceTotal": row[7],
+        }
+
+        cursor.execute("""
+            SELECT Description, Name, Quantity, UnitPrice, Amount
+            FROM items
+            WHERE InvoiceId = ?
+            ORDER BY id ASC
+        """, (invoice_id,))
+        items_rows = cursor.fetchall()
+
+        invoice["Items"] = [
+            {
+                "Description": r[0],
+                "Name": r[1],
+                "Quantity": r[2],
+                "UnitPrice": r[3],
+                "Amount": r[4],
+            }
+            for r in items_rows
+        ]
+
+        return invoice
+    
+#http://127.0.0.1:8080/invoices/vendor/SuperStore
+@app.get("/invoices/vendor/{vendor_name}")
+async def invoices_by_vendor(vendor_name: str):
+    invoices = get_invoices_by_vendor(vendor_name)
+
+    if not invoices:
+        return {
+            "VendorName": "Unknown Vendor",
+            "TotalInvoices": 0,
+            "invoices": []
+        }
+
+    return {
+        "VendorName": vendor_name,
+        "TotalInvoices": len(invoices),
+        "invoices": invoices
+    }
+
+
+def get_invoices_by_vendor(vendor_name: str):
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT InvoiceId
+            FROM invoices
+            WHERE VendorName = ?
+            ORDER BY InvoiceDate ASC
+        """, (vendor_name,))
+        invoice_ids = [r[0] for r in cursor.fetchall()]
+
+
+    invoices = []
+    for inv_id in invoice_ids:
+        inv = get_invoice_by_id(inv_id)
+        if inv:
+            invoices.append(inv)
+
+    return invoices
 
 @app.get('/health')
 def health():

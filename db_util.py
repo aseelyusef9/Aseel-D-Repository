@@ -117,3 +117,6 @@ def save_inv_extraction(result):
                     item.get("UnitPrice"),
                     item.get("Amount")
                 ))
+
+            #################
+
