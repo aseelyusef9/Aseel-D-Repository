@@ -44,7 +44,7 @@ async def extract(file: UploadFile = File(...)):
 
     # TODO: call to save_inv_extraction(result)    ( no need to change this function)
     
-   
+    
 
     data = {}
     data_confidence = {}
