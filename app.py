@@ -55,6 +55,7 @@ async def extract(file: UploadFile = File(...)):
                 data[field_name] = field.field_value.value
                 data_confidence[field_name] = field_confidence
 
+
             #  Items
             else:
                     dict = {}
