@@ -36,22 +36,8 @@ async def extract(file: UploadFile = File(...)):
     )
     time_before=time.time()
     response = doc_client.analyze_document(request)
-<<<<<<< HEAD
 
-    #result = {
-        #"confidence": "TBD...",
-       # "data": "TBD...",
-        #"dataConfidence": "TBD..."
-    #}
 
-    # TODO: call to save_inv_extraction(result)    ( no need to change this function)
-    
-    
-
-=======
-    time_after=time.time()
-   
->>>>>>> 6729185fe1cc223bb82cfb4fe1d57be226ee0e40
     data = {}
     data_confidence = {}
     list_of_items = []
