@@ -54,7 +54,8 @@ async def extract(file: UploadFile = File(...)):
             if field_name and field_name.lower() != "items":
                 data[field_name] = field.field_value.value
                 data_confidence[field_name] = field_confidence
-
+ 
+ 
 
             #  Items
             else:
