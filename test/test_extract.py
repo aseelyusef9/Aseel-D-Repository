@@ -4,20 +4,20 @@ from db_util import init_db
 
 
 class TestInvoiceExtraction(unittest.TestCase):
-    
+
     @patch('oci.ai_document.AIServiceDocumentClient')
     @patch('oci.config.from_file', return_value={})
     def test_extract_endpoint(self, mock_config, mock_client_class):
         """Test the /extract endpoint with invoice_Aaron_Bergman_36259.pdf"""
-        
+
         # Initialize database
         init_db()
-        
+
         # Setup mock client instance
         mock_client_instance = MagicMock()
         mock_client_class.return_value = mock_client_instance
         mock_analyze = mock_client_instance.analyze_document
-        
+
         # Mock OCI response - return the exact expected result structure
         mock_analyze.return_value = type('obj', (object,), {
             'data': type('obj', (object,), {
@@ -119,28 +119,29 @@ class TestInvoiceExtraction(unittest.TestCase):
                 ]
             })()
         })()
-        
+
         # Import app and dependencies after patching
         from app import app
         from fastapi.testclient import TestClient
         import json
-        
+
         # Create test client
         client = TestClient(app)
-        
+
         # Load the test invoice file
         with open("invoices_sample/invoice_Aaron_Bergman_36259.pdf", "rb") as f:
             response = client.post(
                 "/extract",
-                files={"file": ("invoice_Aaron_Bergman_36259.pdf", f, "application/pdf")}
+                files={
+                    "file": ("invoice_Aaron_Bergman_36259.pdf", f, "application/pdf")}
             )
-        
+
         # Check response status
         self.assertEqual(response.status_code, 200)
-        
+
         # Parse response
         result = response.json()
-        
+
         # Expected data structure
         expected_data = {
             "VendorName": "SuperStore",
@@ -163,53 +164,13 @@ class TestInvoiceExtraction(unittest.TestCase):
                 }
             ]
         }
-        
+
         # Validate response structure and values
         self.assertEqual(result["data"], expected_data)
-        
-        print("✓ All assertions passed!")
+
+        print("All assertions passed!")
         print(f"Response: {json.dumps(result, indent=2)}")
 
 
-        ##Failing Test
-
-    @patch('oci.ai_document.AIServiceDocumentClient')
-    @patch('oci.config.from_file', return_value={})
-    def test_extract_endpoint_fail(self, mock_config, mock_client_class):
-        """Deliberately fail by expecting wrong VendorName"""
-        
-        init_db()
-        
-        mock_client_instance = MagicMock()
-        mock_client_class.return_value = mock_client_instance
-        mock_analyze = mock_client_instance.analyze_document
-        
-        # Mock the same valid response
-        mock_analyze.return_value = type('obj', (object,), {
-            'data': type('obj', (object,), {
-                'detected_document_types': [
-                    type('obj', (object,), {'document_type': 'INVOICE', 'confidence': 1})()
-                ],
-                'pages': []
-            })()
-        })()
-        
-        from app import app
-        from fastapi.testclient import TestClient
-        client = TestClient(app)
-        
-        with open("invoices_sample/invoice_Aaron_Bergman_36259.pdf", "rb") as f:
-            response = client.post(
-                "/extract",
-                files={"file": ("invoice_Aaron_Bergman_36259.pdf", f, "application/pdf")}
-            )
-        
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        
-        # This assertion will FAIL deliberately
-        self.assertEqual(result["data"]["VendorName"], "WrongVendorName")
-        
 if __name__ == '__main__':
-   unittest.main()
-
+    unittest.main()
