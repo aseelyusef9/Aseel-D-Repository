@@ -6,4 +6,9 @@ python-multipart
 pytest
 httpx
 pytest-cov
+<<<<<<< HEAD
 pytest-html
+=======
+pytest-htmlpy
+pytest-html
+>>>>>>> 6ad4a29708dfa2fc5ba8ca3e4f06cad66f863c90
