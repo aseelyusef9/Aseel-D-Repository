@@ -46,6 +46,8 @@ Tests written with unittest
 
 API requests simulated using FastAPI TestClient
 
+Prepared test data
+
 Real test database used
 
 External services (OCI) mocked using unittest.mock.patch
@@ -81,6 +83,8 @@ Test results available in GitHub Actions logs
 Pull Requests show pass/fail status
 
 Failed tests block merging to main
+
+Codecov Reporting
 
 
 

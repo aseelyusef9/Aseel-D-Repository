@@ -170,6 +170,19 @@ class TestInvoiceExtraction(unittest.TestCase):
 
         print("All assertions passed!")
         print(f"Response: {json.dumps(result, indent=2)}")
+        
+
+    def test_extract_endpoint_missing_file(self):
+    #"Test request without file"""
+        from app import app
+        from fastapi.testclient import TestClient
+
+        client = TestClient(app)
+        response = client.post("/extract")
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("detail", response.json())
+
 
 
 if __name__ == '__main__':

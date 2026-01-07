@@ -195,7 +195,7 @@ class TestInvoicesByVendor(unittest.TestCase):
         ]
         
         for field in required_fields:
-            self.assertIn(field, invoice, f"Missing field: {field}")
+            self.assertIn(field, invoice, f"Missing field: {field}") 
     
     def test_get_invoices_by_vendor_empty_string(self):
         """Test vendor search with empty string"""
