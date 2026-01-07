@@ -7,3 +7,4 @@ pytest
 httpx
 pytest-cov
 pytest-htmlpy
+pytest-html
