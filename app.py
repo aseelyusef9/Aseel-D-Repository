@@ -122,6 +122,7 @@ def _get_invoice_by_id_from_db(invoice_id: str):
             "ShippingCost": row[6],
             "InvoiceTotal": row[7],
         }
+        
 
         cursor.execute("""
             SELECT Description, Name, Quantity, UnitPrice, Amount
