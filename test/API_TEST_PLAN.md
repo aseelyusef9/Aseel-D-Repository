@@ -58,6 +58,8 @@ Each test is isolated, with database setup and cleanup before and after executio
 
 GitHub Actions CI
 
+pytest
+
 Ubuntu latest runner
 
 Tests executed automatically on Pull Requests to the main branch
@@ -66,15 +68,13 @@ Tests executed automatically on Pull Requests to the main branch
 
 100% API endpoint coverage
 
-All tests pass successfully
-
 Correct API responses and status codes
 
 Database integration verified
 
 External services fully mocked
 
-Near 100% code coverage of API logic
+90% and up age of API logic
 
 5. Reporting:
 

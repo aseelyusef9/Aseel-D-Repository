@@ -6,5 +6,6 @@ pytest
 httpx
 pytest-cov
 pytest-html
+allure-pytest
 
 
