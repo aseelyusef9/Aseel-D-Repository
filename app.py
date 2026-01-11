@@ -6,10 +6,36 @@ from db_util import init_db, save_inv_extraction, get_db
 
 app = FastAPI()
 
-# Load OCI config from ~/.oci/config
-config = oci.config.from_file()
+# doc_client is initialized lazily to avoid raising during import (tests/CI may not have OCI config)
+doc_client = None
 
-doc_client = oci.ai_document.AIServiceDocumentClient(config)
+def _init_doc_client():
+    """Attempt to initialize the OCI AI Document client. If the OCI config
+    file is not present, leave `doc_client` as None so import-time test
+    collection doesn't fail. Tests can patch `doc_client` or `oci.config.from_file`.
+    """
+    global doc_client
+    if doc_client is not None:
+        return
+    try:
+        config = oci.config.from_file()
+        doc_client = oci.ai_document.AIServiceDocumentClient(config)
+    except Exception:
+        # Do not raise on import; leave client as None. This avoids test/CI failures
+        # when OCI config is missing. Specific exception is oci.exceptions.ConfigFileNotFound,
+        # but catching Exception is safe here to avoid importing oci.exception names.
+        doc_client = None
+
+def get_doc_client():
+    """Return the initialized doc client, initializing it lazily if needed."""
+    if doc_client is None:
+        _init_doc_client()
+    return doc_client
+
+
+@app.on_event("startup")
+async def _startup_init():
+    _init_doc_client()
 
 
 @app.post("/extract")
@@ -35,7 +61,10 @@ async def extract(file: UploadFile = File(...)):
         ]
     )
     time_before = time.time()
-    response= doc_client.analyze_document(request)
+    client = get_doc_client()
+    if client is None:
+        raise HTTPException(status_code=500, detail="Document AI client not configured")
+    response = client.analyze_document(request)
     time_before = time.time()
 
 
