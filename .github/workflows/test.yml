@@ -23,8 +23,11 @@ jobs:
         pip install pytest httpx
     
     - name: Run tests
+      env:
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         python test/ -v
+        
     
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
