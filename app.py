@@ -35,7 +35,9 @@ async def extract(file: UploadFile = File(...)):
         ]
     )
     time_before = time.time()
-    response = doc_client.analyze_document(request)
+    response= doc_client.analyze_document(request)
+    time_before = time.time()
+
 
     data = {}
     data_confidence = {}

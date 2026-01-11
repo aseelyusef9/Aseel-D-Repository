@@ -41,3 +41,5 @@ Thumbs.db
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 coverag.xml
+allure-results
+allure-report
