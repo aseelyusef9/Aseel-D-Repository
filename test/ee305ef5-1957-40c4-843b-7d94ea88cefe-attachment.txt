@@ -1,2 +1,0 @@
-[]
-{'confidence': 1, 'data': {'Items': []}, 'dataConfidence': {}, 'predictionTime': 0.00015926361083984375}
