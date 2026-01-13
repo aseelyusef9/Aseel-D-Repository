@@ -13,6 +13,15 @@ def get_db():
     finally:
         conn.close()
 
+def clean_db():
+    """Delete all rows from all tables to reset the database."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM items")
+        cursor.execute("DELETE FROM confidences")
+        cursor.execute("DELETE FROM invoices")
+        conn.commit()
+
 
 def init_db():
     with get_db() as conn:
