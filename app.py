@@ -1,10 +1,19 @@
 from fastapi import FastAPI, UploadFile, File,HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import oci
 import time
 import base64
 from db_util import init_db, save_inv_extraction,get_db
 
 app = FastAPI()
+
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["http://localhost:3000"],  # Your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
 
 # Load OCI config from ~/.oci/config
 config = oci.config.from_file()
@@ -88,12 +97,12 @@ async def extract(file: UploadFile = File(...)):
             )
 
 
-    prediction_time=time_after-time_before
+
     result = {
         "confidence": 1,
         "data": data,
         "dataConfidence": data_confidence,
-        "predictionTime": prediction_time
+        
     }
     
     save_inv_extraction(result)
@@ -195,6 +204,9 @@ def health():
 
 if __name__ == "__main__":
     import uvicorn
+
+
+    
 
     init_db()
     uvicorn.run(app, host="0.0.0.0", port=8080)
