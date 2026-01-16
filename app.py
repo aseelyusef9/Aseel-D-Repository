@@ -2,13 +2,14 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from sqlalchemy.orm import Session
 
-from db import get_db, Base, engine
+from db import get_db, Base, init_db
 from queries import save_invoice_extraction, get_invoice_by_id, get_invoices_by_vendor
 from services.invoice_parser import parse_invoice_from_pdf
 
 app = FastAPI()
 
-# Create tables
+# Initialize DB (uses env/defaults) and create tables
+engine = init_db()
 Base.metadata.create_all(bind=engine)
 
 # ----------------------

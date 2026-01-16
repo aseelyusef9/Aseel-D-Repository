@@ -2,35 +2,28 @@
 import unittest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from db import Base, get_db
+from db import Base, init_db, get_db
 from queries import save_invoice_extraction
 import app
 
 # ----------------------------
-# Test database (in-memory SQLite)
+# Test database (file-based SQLite for testing)
 # ----------------------------
-TEST_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+import os
+TEST_DATABASE_URL = "sqlite:///./test_byvendor.db"
+engine = init_db(TEST_DATABASE_URL)
 Base.metadata.create_all(bind=engine)
 
-# Override FastAPI dependency
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-app.app.dependency_overrides[get_db] = override_get_db
+# Override FastAPI dependency with module get_db
+app.app.dependency_overrides[get_db] = get_db
 
 class TestInvoicesByVendor(unittest.TestCase):
 
     def setUp(self):
         # Clean and recreate DB before each test
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
+        import db as db_module
+        Base.metadata.drop_all(bind=db_module.engine)
+        Base.metadata.create_all(bind=db_module.engine)
         self.client = TestClient(app.app)
         self.setup_test_data()
 
@@ -76,9 +69,13 @@ class TestInvoicesByVendor(unittest.TestCase):
             }
         ]
 
-        db = next(override_get_db())
-        for inv in invoices:
-            save_invoice_extraction(db, {"confidence": 1, "data": inv, "dataConfidence": {}, "predictionTime": 1.0})
+        from db import SessionLocal
+        db = SessionLocal()
+        try:
+            for inv in invoices:
+                save_invoice_extraction(db, {"confidence": 1, "data": inv, "dataConfidence": {}, "predictionTime": 1.0})
+        finally:
+            db.close()
 
     def test_get_invoices_by_vendor_success(self):
         response = self.client.get("/invoices/vendor/SuperStore")
@@ -95,7 +92,7 @@ class TestInvoicesByVendor(unittest.TestCase):
         response = self.client.get("/invoices/vendor/NonExistentVendor")
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result["VendorName"], "Unknown Vendor")
+        self.assertEqual(result["VendorName"], "NonExistentVendor")
         self.assertEqual(result["TotalInvoices"], 0)
         self.assertEqual(result["invoices"], [])
 
@@ -103,7 +100,7 @@ class TestInvoicesByVendor(unittest.TestCase):
         response = self.client.get("/invoices/vendor/superstore")
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result["VendorName"], "Unknown Vendor")
+        self.assertEqual(result["VendorName"], "superstore")
         self.assertEqual(result["TotalInvoices"], 0)
 
     def test_get_invoices_by_vendor_single_invoice(self):

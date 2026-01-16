@@ -2,36 +2,29 @@
 import unittest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from db import Base, get_db
+from db import Base, init_db, get_db
 from models import Invoice, Item, Confidence
 import app
 from queries import save_invoice_extraction
 
 # ----------------------------
-# Test database (in-memory SQLite)
+# Test database (file-based SQLite for testing)
 # ----------------------------
-TEST_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+import os
+TEST_DATABASE_URL = "sqlite:///./test_byid.db"
+engine = init_db(TEST_DATABASE_URL)
 Base.metadata.create_all(bind=engine)
 
-# Override FastAPI dependency
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-app.app.dependency_overrides[get_db] = override_get_db
+# Override FastAPI dependency with module's get_db (uses initialized SessionLocal)
+app.app.dependency_overrides[get_db] = get_db
 
 class TestInvoiceById(unittest.TestCase):
 
     def setUp(self):
         # Clean and recreate DB before each test
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
+        import db as db_module
+        Base.metadata.drop_all(bind=db_module.engine)
+        Base.metadata.create_all(bind=db_module.engine)
         self.client = TestClient(app.app)
         self.setup_test_data()
 
@@ -69,8 +62,12 @@ class TestInvoiceById(unittest.TestCase):
             },
             "predictionTime": 1.5
         }
-        db = next(override_get_db())
-        save_invoice_extraction(db, test_result)
+        from db import SessionLocal
+        db = SessionLocal()
+        try:
+            save_invoice_extraction(db, test_result)
+        finally:
+            db.close()
 
     def test_get_invoice_by_id_success(self):
         response = self.client.get("/invoice/36259")
@@ -106,8 +103,12 @@ class TestInvoiceById(unittest.TestCase):
             "dataConfidence": {},
             "predictionTime": 1.0
         }
-        db = next(override_get_db())
-        save_invoice_extraction(db, test_result)
+        from db import SessionLocal
+        db = SessionLocal()
+        try:
+            save_invoice_extraction(db, test_result)
+        finally:
+            db.close()
 
         response = self.client.get("/invoice/12345")
         self.assertEqual(response.status_code, 200)
@@ -135,8 +136,12 @@ class TestInvoiceById(unittest.TestCase):
             "dataConfidence": {},
             "predictionTime": 1.0
         }
-        db = next(override_get_db())
-        save_invoice_extraction(db, test_result)
+        from db import SessionLocal
+        db = SessionLocal()
+        try:
+            save_invoice_extraction(db, test_result)
+        finally:
+            db.close()
 
         response = self.client.get("/invoice/67890")
         self.assertEqual(response.status_code, 200)
